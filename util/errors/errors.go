@@ -28,7 +28,7 @@ func IsTransientErr(err error) bool {
 		return false
 	}
 	err = argoerrs.Cause(err)
-	isTransient := isExceededQuotaErr(err) || apierr.IsTooManyRequests(err) || isResourceQuotaConflictErr(err) || isTransientNetworkErr(err) || apierr.IsServerTimeout(err) || apierr.IsServiceUnavailable(err) || matchTransientErrPattern(err) ||
+	isTransient := isExceededQuotaErr(err) || apierr.IsTooManyRequests(err) || isResourceQuotaConflictErr(err) || isTransientNetworkErr(err) || apierr.IsServerTimeout(err) || apierr.IsServiceUnavailable(err) || matchTransientErrPattern(err) || isTransientKubeSvcErr(err) ||
 		errors.Is(err, NewErrTransient(""))
 	if isTransient {
 		log.Infof("Transient error: %v", err)
@@ -85,6 +85,18 @@ func isTransientNetworkErr(err error) bool {
 		return true
 	} else if strings.Contains(errorString, "http2: client connection lost") {
 		// If err is http2 transport ping timeout, retry.
+		return true
+	}
+
+	return false
+}
+
+func isTransientKubeSvcErr(err error) bool {
+	errorString := generateErrorString(err)
+	hostString := os.Getenv("KUBERNETES_SERVICE_HOST")
+	log.Warnf("Non-transient1 string: %s", hostString)
+	if strings.Contains(errorString, hostString) {
+		log.Warnf("Non-transient2 string: %s", hostString)
 		return true
 	}
 
